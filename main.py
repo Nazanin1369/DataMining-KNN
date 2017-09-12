@@ -3,10 +3,15 @@ import numpy as np
 import math
 import operator
 
+### NOTE: Python 3.x is required to compile this file
 
 TRAIN_FILE_PATH = './data/train.csv'
-FINAL_TEST_FILE = './data/training.csv'
 TEST_FILE_PATH = './data/test.csv'
+DIRECTION_FILE_PATH = './data/trainDirection.csv'
+FINAL_TEST_FILE_k1 = './results/testingk1.csv'
+FINAL_TEST_FILE_k3 = './results/testingk3.csv'
+FINAL_TEST_FILE_k5 = './results/testingk5.csv'
+FINAL_TEST_FILE_k10 = './results/testingk10.csv'
 
 train_data_frame = []
 test_data_frame = []
@@ -22,9 +27,20 @@ def loadData(filePath):
     Adds Movement columns for each Lag into dataframes
 '''
 def processData(df):
-    df['Movement1'] = np.where((df['Lag1'] >= 0), 'Up', 'Down')
-    df['Movement2'] = np.where((df['Lag2'] >= 0), 'Up', 'Down')
+    directions_df =  pd.read_csv(DIRECTION_FILE_PATH)
+    df['Direction'] = directions_df['Direction']
+    #print(df.head())
     return df
+
+'''
+    Utility function to transform dataFrame into array of its rows
+'''
+def transformTrainingData(train_data_frame):
+    trainings= []
+    for index, row in train_data_frame.iterrows():
+        test_row = [round(row[0], 3), round(row[1], 3), row[2]]
+        trainings.append(test_row)
+    return trainings
 
 '''
  Calculates similarity between two given data samples
@@ -72,7 +88,7 @@ def getResponse(neighbors):
 			classVotes[response] += 1
 		else:
 			classVotes[response] = 1
-	sortedVotes = sorted(classVotes.iteritems(), key=operator.itemgetter(1), reverse=True)
+	sortedVotes = sorted(classVotes.items(), key=operator.itemgetter(1), reverse=True)
 	return sortedVotes[0][0]
 
 
@@ -83,24 +99,89 @@ def getResponse(neighbors):
 def getAccuracy(testSet, predictions):
 	correct = 0
 	for x in range(len(testSet)):
-		if testSet[x][-1] == predictions[x]:
+		if testSet[x] == predictions[x]:
 			correct += 1
-	return (correct/float(len(testSet))) * 100.0
+	return round((correct/float(len(testSet))) * 100.0, 3)
 
 
+'''
+Main KNN function
+'''
+def knn(k, path, test_data, train_data, actual_test_data):
+    print('*******************************************')
+    print('************    K = ', k , '  ******************')
+    print('*******************************************')
+    copy_of_test_data = test_data.copy()
+    copy_of_train_data = train_data
+    predictions = []
 
+    print('--> Calculating KNN...')
+    for index, test_sample in test_data.iterrows():
+        #print(test_sample.values[0], ', ', test_sample.values[1])
+        neighbors = getNeighbors(copy_of_train_data, test_sample, k)
+        neighbors_prediction = getResponse(neighbors)
+        predictions.append(neighbors_prediction)
+
+    print('--> Writing predictions...')
+    copy_of_test_data['Direction'] = predictions
+    copy_of_test_data.to_csv(path, float_format='%.3f')
+    print('--> Calculating Accuracy...')
+    accuracy = getAccuracy(actual_test_data, copy_of_test_data['Direction'].values)
+    print('Accuracy = ', accuracy, '%')
+
+#############################################################################################
 ## read training data into a dataFrame
 train_data_frame  = processData(loadData(TRAIN_FILE_PATH))
-
+training_data = transformTrainingData(train_data_frame)
 ## read testing data into a dataFrame
-test_data_frame = processData(loadData(TEST_FILE_PATH))
+test_data_frame = loadData(TEST_FILE_PATH)
+
+## Just an assumption file for calculating Accuracy
+## All directions added ther according to market movement manually
+actual_test_result = pd.read_csv('./data/testing.csv')['Direction'].values
 
 ## verigying data retrieval
-#print('Training data: ', train_data_frame.shape[0] ,'samples.')
-#print('Testing data: ', test_data_frame.shape[0], 'samples.')
-print(train_data_frame.head())
-print(test_data_frame.head())
+print('Training data: ', train_data_frame.shape[0] ,'samples.')
+print('Testing data: ', test_data_frame.shape[0], 'samples.')
 
+knn(1, FINAL_TEST_FILE_k1, test_data_frame, training_data, actual_test_result)
+knn(3, FINAL_TEST_FILE_k3, test_data_frame, training_data, actual_test_result)
+knn(5, FINAL_TEST_FILE_k5, test_data_frame, training_data, actual_test_result)
+knn(10, FINAL_TEST_FILE_k10, test_data_frame, training_data, actual_test_result)
 
-
+##################################################################################
+########################## Output ###############################################
+'''
+(naz) 🦄 python main.py
+Training data:  998 samples.
+Testing data:  252 samples.
+*******************************************
+************    K =  1   ******************
+*******************************************
+--> Calculating KNN...
+--> Writing predictions...
+--> Calculating Accuracy...
+Accuracy =  100.0 %
+*******************************************
+************    K =  3   ******************
+*******************************************
+--> Calculating KNN...
+--> Writing predictions...
+--> Calculating Accuracy...
+Accuracy =  76.19 %
+*******************************************
+************    K =  5   ******************
+*******************************************
+--> Calculating KNN...
+--> Writing predictions...
+--> Calculating Accuracy...
+Accuracy =  69.841 %
+*******************************************
+************    K =  10   ******************
+*******************************************
+--> Calculating KNN...
+--> Writing predictions...
+--> Calculating Accuracy...
+Accuracy =  64.683 %
+'''
 
