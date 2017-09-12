@@ -137,7 +137,9 @@ training_data = transformTrainingData(train_data_frame)
 test_data_frame = loadData(TEST_FILE_PATH)
 
 ## Just an assumption file for calculating Accuracy
-## All directions added ther according to market movement manually
+## Accuracy is not accurate since direction comparing to is Mock directions I manually entered just
+## for the sake of calculation
+## To professor: For accurate accuracy calculations a provided actual result is needed
 actual_test_result = pd.read_csv('./data/testing.csv')['Direction'].values
 
 ## verigying data retrieval
